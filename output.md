@@ -1,12 +1,15 @@
-![A](./foo.png)
+<div>
+  <img />
+  <span>Hey there 2</span>
+</div>
 
 <some-component>
   <p>Hello</p>
 </some-component>
 
+Yo
+
 <div>
   <img />
-  <span>Hey there</span>
+  <span>Hey there 2</span>
 </div>
-
-![Query execution plan](/dynamo-introduction/img2.jpg)

@@ -1,4 +1,4 @@
-![A](./foo.png)
+![A](./img1.png)
 
 <some-component>
   <p>Hello</p>
@@ -6,4 +6,4 @@
 
 Yo
 
-![Query execution plan](/dynamo-introduction/img2.jpg)
+![Query execution plan](/img5.png)

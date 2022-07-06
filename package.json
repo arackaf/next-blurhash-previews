@@ -1,8 +1,11 @@
 {
   "name": "next-static-image-previews",
-  "version": "1.0.0",
+  "version": "0.0.3",
   "description": "",
   "main": "index.js",
+  "bin": {
+    "next-static-markdown-previews": "./index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,10 +21,12 @@
   },
   "homepage": "https://github.com/arackaf/next-static-image-previews#readme",
   "dependencies": {
+    "blurhash": "^1.1.5",
     "node-html-parser": "^5.3.3",
     "prettier": "^2.7.1",
     "remark": "^14.0.2",
     "retext": "^8.1.0",
+    "sharp": "^0.30.7",
     "to-vfile": "^7.2.3",
     "unist-util-visit": "^4.1.0",
     "unist-util-visit-parents": "^5.1.0",
