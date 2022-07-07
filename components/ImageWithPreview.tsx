@@ -57,6 +57,17 @@ if (typeof HTMLElement !== "undefined") {
     }
   }
 
+  class Foo extends HTMLElement {
+    connectedCallback() {
+      const h = document.createElement("h1");
+      h.textContent = "Hello World";
+      this.appendChild(h);
+    }
+  }
+  if (!customElements.get("uikit-foo")) {
+    customElements.define("uikit-foo", Foo);
+  }
+
   if (!customElements.get("uikit-image")) {
     customElements.define("uikit-image", ImageWithPreview);
   }
@@ -75,7 +86,7 @@ function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   ctx.putImageData(imageData, 0, 0);
 }
 
-export const ImagePreviewBootstrap = props => {
+export const ImagePreviewBootstrap = (props) => {
   return null;
 };
 

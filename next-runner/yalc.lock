@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "next-static-image-previews": {
+      "signature": "d6ca28803e08581968aab99799422e6b",
+      "file": true
+    }
+  }
+}
