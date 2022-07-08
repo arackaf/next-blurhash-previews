@@ -3,46 +3,69 @@ import { decode } from "../node_modules/blurhash/dist/esm/index";
 type blurhash = { w: number; h: number; blurhash: string };
 
 class ImageWithPreview extends HTMLElement {
+  isReady: boolean = false;
   loaded: boolean = false;
   sd: ShadowRoot;
+  mo: MutationObserver;
 
   static observedAttributes = ["preview", "url"];
 
-  get currentImageEl(): any {
+  get imgEl(): any {
     return this.querySelector("img");
   }
-  get currentCanvasEl(): any {
+  get canvasEl(): any {
     return this.querySelector("canvas");
   }
 
   constructor() {
     super();
+
     this.sd = this.attachShadow({ mode: "open" });
     this.sd.innerHTML = `<slot name="preview"></slot>`;
   }
 
+  checkReady = () => {
+    if (this.imgEl && this.canvasEl) {
+      this.ready();
+      this.mo.disconnect();
+    }
+  };
+
   connectedCallback() {
-    if (this.currentImageEl.complete) {
+    this.mo = new MutationObserver(this.checkReady);
+    this.mo.observe(this, { subtree: true, childList: true, attributes: false });
+  }
+
+  ready() {
+    this.isReady = true;
+    this.updatePreview();
+    if (this.imgEl.complete) {
       this.onImageLoad();
     }
-    this.currentImageEl.addEventListener("load", this.onImageLoad);
+    this.imgEl.addEventListener("load", this.onImageLoad);
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === "preview") {
-      const previewObj = JSON.parse(newValue);
-      updateBlurHashPreview(this.currentCanvasEl, previewObj);
-    } else if (name === "url") {
-      if (newValue !== this.currentImageEl.getAttribute("src")) {
-        this.loaded = false;
-        this.currentImageEl.src = newValue || "";
-      }
+    if (!this.isReady) {
+      return;
     }
+
+    if (name === "preview") {
+      this.updatePreview();
+    } else if (name === "url") {
+      this.loaded = false;
+    }
+
     this.render();
   }
 
+  updatePreview() {
+    const previewObj = JSON.parse(this.getAttribute("preview")!);
+    updateBlurHashPreview(this.canvasEl, previewObj);
+  }
+
   onImageLoad = () => {
-    if (this.getAttribute("url") !== this.currentImageEl.src) {
+    if (this.getAttribute("url") !== this.imgEl.src) {
       setTimeout(() => {
         this.loaded = true;
         this.render();

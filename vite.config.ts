@@ -4,6 +4,7 @@ import writeBootstrapPlugin from "./util/setBootstrap";
 
 export default defineConfig({
   build: {
+    target: "es2022",
     outDir: "./build",
     lib: {
       entry: "components/ImageWithPreview.tsx",
@@ -11,7 +12,6 @@ export default defineConfig({
       fileName: () => "ImageWithPreview.js",
       name: "imageWithPreview",
     },
-
     //minify: false,
     rollupOptions: {
       external: ["react", "react-dom", "next", "next/script"],
