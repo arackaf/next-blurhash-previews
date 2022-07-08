@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "bin": {
-    "next-static-markdown-previews": "./index.js"
+    "next-static-markdown-previews": "./bin/markdown-sync.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
