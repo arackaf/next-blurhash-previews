@@ -6,7 +6,7 @@ class ImageWithPreview extends HTMLElement {
   isReady: boolean = false;
   loaded: boolean = false;
   sd: ShadowRoot;
-  mo: MutationObserver;
+  mo?: MutationObserver;
 
   static observedAttributes = ["preview", "url"];
 
@@ -27,13 +27,16 @@ class ImageWithPreview extends HTMLElement {
   checkReady = () => {
     if (this.imgEl && this.canvasEl) {
       this.ready();
-      this.mo.disconnect();
+      this.mo?.disconnect();
     }
+    return this.isReady;
   };
 
   connectedCallback() {
-    this.mo = new MutationObserver(this.checkReady);
-    this.mo.observe(this, { subtree: true, childList: true, attributes: false });
+    if (!this.checkReady()) {
+      this.mo = new MutationObserver(this.checkReady);
+      this.mo.observe(this, { subtree: true, childList: true, attributes: false });
+    }
   }
 
   ready() {
