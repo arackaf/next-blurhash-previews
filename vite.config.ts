@@ -14,7 +14,7 @@ export default defineConfig({
 
     //minify: false,
     rollupOptions: {
-      external: ["react", "react-dom"],
+      external: ["react", "react-dom", "next", "next/script"],
     },
   },
   plugins: [react(), writeBootstrapPlugin()],
