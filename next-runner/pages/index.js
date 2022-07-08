@@ -2,7 +2,7 @@ import Head from "next/head";
 import Image from "next/image";
 import styles from "../styles/Home.module.css";
 
-import "../../components/ImageWithPreview";
+import number from "next-static-image-previews/junk";
 
 export default function Home() {
   return (
@@ -13,6 +13,8 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       Root
+      <br />
+      {number}
       <uikit-foo></uikit-foo>
     </div>
   );
