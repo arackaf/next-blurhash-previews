@@ -1,2 +1,5 @@
 node_modules
 .yalc
+build
+ImagePreviewBootstrap.js
+.DS_Store
