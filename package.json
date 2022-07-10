@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "bin": {
-    "next-static-markdown-previews": "./bin/markdown-sync.js"
+    "next-blurhash-previews": "./bin/markdown-sync.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -28,6 +28,7 @@
     "@vitejs/plugin-react": "^1.3.2",
     "blurhash": "^1.1.5",
     "next": "^12.2.0",
+    "node-fetch": "^3.2.6",
     "node-html-parser": "^5.3.3",
     "prettier": "^2.7.1",
     "remark": "^14.0.2",

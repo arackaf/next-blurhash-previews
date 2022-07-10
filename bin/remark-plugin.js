@@ -4,6 +4,8 @@ import path, { dirname } from "path";
 import sharp from "sharp";
 import { encode, isBlurhashValid } from "blurhash";
 
+import fetch from "node-fetch";
+
 import { visit } from "unist-util-visit";
 import { visitParents } from "unist-util-visit-parents";
 
@@ -11,8 +13,19 @@ import HTMLParser from "node-html-parser";
 import prettier from "prettier";
 
 import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = process.cwd();
+
+async function getSharpImage(url) {
+  if (/^http/.test(url)) {
+    const buffer = await fetch(url).then(fetchResponse =>
+      fetchResponse.buffer()
+    );
+    return sharp(buffer);
+  } else {
+    const resolvedPath = path.join(__dirname, url);
+    return sharp(resolvedPath);
+  }
+}
 
 export default function retextSentenceSpacing() {
   return (tree, file, done) => {
@@ -20,14 +33,11 @@ export default function retextSentenceSpacing() {
       const { url } = node;
 
       //const resolvedPath = path.join(process.cwd(), url);
-      const resolvedPath = path.join(__dirname, url);
-      console.log(resolvedPath);
 
-      const image = sharp(resolvedPath);
+      let image = await getSharpImage(url);
       const dimensions = await image.metadata();
 
       const { width, height } = dimensions;
-      console.log(height, width);
 
       image
         .raw()
@@ -38,7 +48,13 @@ export default function retextSentenceSpacing() {
             if (err) {
               console.log("Error getting buffer", err);
             } else {
-              const blurhash = encode(new Uint8ClampedArray(buffer), width, height, 4, 4);
+              const blurhash = encode(
+                new Uint8ClampedArray(buffer),
+                width,
+                height,
+                4,
+                4
+              );
               if (isBlurhashValid(blurhash)) {
                 console.log({ blurhash, w: width, h: height });
               } else {
