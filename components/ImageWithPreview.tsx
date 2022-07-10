@@ -3,8 +3,6 @@ import { decode } from "../node_modules/blurhash/dist/esm/index";
 type blurhash = { w: number; h: number; blurhash: string };
 
 class ImageWithPreview extends HTMLElement {
-  isReady: boolean = false;
-  loaded: boolean = false;
   sd: ShadowRoot;
   mo?: MutationObserver;
 
@@ -26,10 +24,11 @@ class ImageWithPreview extends HTMLElement {
 
   checkReady = () => {
     if (this.imgEl && this.canvasEl) {
-      this.ready();
       this.mo?.disconnect();
+      this.ready();
+      return true;
     }
-    return this.isReady;
+    return false;
   };
 
   connectedCallback() {
@@ -40,44 +39,28 @@ class ImageWithPreview extends HTMLElement {
   }
 
   ready() {
-    this.isReady = true;
     this.updatePreview();
     if (this.imgEl.complete) {
-      this.onImageLoad();
+      this.imgLoad();
     }
-    this.imgEl.addEventListener("load", this.onImageLoad);
+    this.imgEl.addEventListener("load", this.imgLoad);
   }
 
+  imgLoad = () => {
+    setTimeout(() => {
+      this.sd.innerHTML = `<slot name="image"></slot>`;
+    }, 1500);
+  };
+
   attributeChangedCallback(name, oldValue, newValue) {
-    if (!this.isReady) {
-      return;
-    }
-
-    if (name === "preview") {
+    if (this.canvasEl && name === "preview") {
       this.updatePreview();
-    } else if (name === "url") {
-      this.loaded = false;
     }
-
-    this.render();
   }
 
   updatePreview() {
     const previewObj = JSON.parse(this.getAttribute("preview")!);
     updateBlurHashPreview(this.canvasEl, previewObj);
-  }
-
-  onImageLoad = () => {
-    if (this.getAttribute("url") !== this.imgEl.src) {
-      setTimeout(() => {
-        this.loaded = true;
-        this.render();
-      }, 1500);
-    }
-  };
-
-  render() {
-    this.sd.innerHTML = `<slot name="${this.loaded ? "image" : "preview"}"></slot>`;
   }
 }
 
