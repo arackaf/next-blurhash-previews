@@ -17,7 +17,7 @@ async function run() {
     .use(retextSentenceSpacing)
     .process(buffer)
     .then(file => {
-      fs.writeFileSync("../output.md", file.toString());
+      fs.writeFileSync("./output.md", file.toString());
     });
 }
 
