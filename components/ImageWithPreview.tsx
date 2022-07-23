@@ -28,7 +28,6 @@ class ImageWithPreview extends HTMLElement {
       this.ready();
       return true;
     }
-    return false;
   };
 
   connectedCallback() {
@@ -43,20 +42,19 @@ class ImageWithPreview extends HTMLElement {
   }
 
   ready() {
-    this.updatePreview();
     if (this.imgEl.complete) {
       this.imgLoad();
+    } else {
+      this.updatePreview();
+      this.imgEl.addEventListener("load", this.imgLoad);
     }
-    this.imgEl.addEventListener("load", this.imgLoad);
   }
 
   imgLoad = () => {
-    setTimeout(() => {
-      this.sd.innerHTML = `<slot name="image"></slot>`;
-    }, 1500);
+    this.sd.innerHTML = `<slot name="image"></slot>`;
   };
 
-  attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(name) {
     if (this.canvasEl && name === "preview") {
       this.updatePreview();
     }
