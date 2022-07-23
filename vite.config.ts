@@ -7,9 +7,9 @@ export default defineConfig({
     target: "es2022",
     outDir: "./build",
     lib: {
-      entry: "components/ImageWithPreview.tsx",
+      entry: "components/imageWithPreview.tsx",
       formats: ["cjs"],
-      fileName: () => "ImageWithPreview.js",
+      fileName: () => "imageWithPreview.js",
       name: "imageWithPreview",
     },
     //minify: false,
