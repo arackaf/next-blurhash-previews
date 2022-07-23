@@ -1,42 +1,50 @@
 import { visitParents } from "unist-util-visit-parents";
-
 import HTMLParser from "node-html-parser";
 import prettier from "prettier";
+
+import colors from "colors";
 
 import { getBlurhash } from "./generateBlurhash.js";
 
 export default function retextSentenceSpacing() {
   return (tree, file, done) => {
+    let outstanding = 0;
+
     visitParents(tree, "image", async (node, ancestors) => {
       const { url } = node;
 
-      const blurHash = await getBlurhash(url);
+      console.log(colors.blue(`Attempting ${url}...`));
 
-      console.log("SUCCESS", blurHash);
+      try {
+        outstanding++;
+        const blurHash = await getBlurhash(url);
 
-      const parent = ancestors[ancestors.length - 1];
-      const index = parent.children.indexOf(node);
+        console.log(colors.green(`Finished processing ${url}\n\t`, blurHash));
 
-      const newNode = HTMLParser.parse(`<div>
+        const parent = ancestors[ancestors.length - 1];
+        const index = parent.children.indexOf(node);
+
+        const newNode = HTMLParser.parse(`<div>
         <img />
         <span>Hey there 2</span>
         </div>`);
 
-      parent.children[index] = {
-        type: "html",
-        value: prettier.format(newNode.outerHTML, { parser: "html" }).trimEnd(),
-      };
-
-      setTimeout(() => {
-        done();
-      }, 3000);
-      //parent.children[index] = replacement;
-
-      // parent.children.push({
-      //   type: "html",
-      //   value: `<div><img /><span>Hey there</span></div>`,
-      //   position: node.position,
-      // });
+        parent.children[index] = {
+          type: "html",
+          value: prettier
+            .format(newNode.outerHTML, { parser: "html" })
+            .trimEnd(),
+        };
+      } catch (er) {
+        console.log(colors.red(`Error processing ${url}\n\t`, er));
+      } finally {
+        outstanding--;
+        setTimeout(() => {
+          if (outstanding === 0) {
+            done();
+          }
+        }, 1);
+      }
     });
   };
 }

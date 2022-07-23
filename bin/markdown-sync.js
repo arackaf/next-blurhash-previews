@@ -12,6 +12,8 @@ import { fileURLToPath } from "url";
 const __dirname = process.cwd();
 const buffer = fs.readFileSync(path.join(__dirname, "example.md"));
 
+console.log(__dirname);
+
 async function run() {
   remark()
     .use(retextSentenceSpacing)
