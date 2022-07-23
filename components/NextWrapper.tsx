@@ -1,7 +1,15 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      ["blurhash-image"]: any;
+    }
+  }
+}
 
 export const ImageWithPreview = (props: any) => {
-  const wcRef = useRef(null);
+  const wcRef = useRef<any>(null);
 
   const { preview } = props;
   const { w, h } = JSON.parse(preview);
@@ -11,9 +19,9 @@ export const ImageWithPreview = (props: any) => {
   }, []);
 
   return (
-    <uikit-image ref={wcRef} {...props}>
+    <blurhash-image ref={wcRef} {...props}>
       <img style={{ display: "none" }} />
       <canvas width={w} height={h}></canvas>
-    </uikit-image>
+    </blurhash-image>
   );
 };

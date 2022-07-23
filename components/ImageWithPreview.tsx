@@ -34,7 +34,11 @@ class ImageWithPreview extends HTMLElement {
   connectedCallback() {
     if (!this.checkReady()) {
       this.mo = new MutationObserver(this.checkReady);
-      this.mo.observe(this, { subtree: true, childList: true, attributes: false });
+      this.mo.observe(this, {
+        subtree: true,
+        childList: true,
+        attributes: false,
+      });
     }
   }
 
@@ -64,8 +68,8 @@ class ImageWithPreview extends HTMLElement {
   }
 }
 
-if (!customElements.get("uikit-image")) {
-  customElements.define("uikit-image", ImageWithPreview);
+if (!customElements.get("blurhash-image")) {
+  customElements.define("blurhash-image", ImageWithPreview);
 }
 
 function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
