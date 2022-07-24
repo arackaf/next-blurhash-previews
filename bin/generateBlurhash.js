@@ -13,8 +13,7 @@ export async function getSharpImage(imgPath) {
 
     return sharp(buffer);
   } else {
-    const resolvedPath = path.join(__dirname, imgPath);
-    return sharp(resolvedPath);
+    return sharp(imgPath);
   }
 }
 
