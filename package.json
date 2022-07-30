@@ -31,7 +31,6 @@
     "glob": "^8.0.3",
     "next": "^12.2.0",
     "node-fetch": "^3.2.6",
-    "node-html-parser": "^5.3.3",
     "prettier": "^2.7.1",
     "remark": "^14.0.2",
     "retext": "^8.1.0",

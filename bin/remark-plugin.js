@@ -1,6 +1,5 @@
 import path from "path";
 import { visitParents } from "unist-util-visit-parents";
-import HTMLParser from "node-html-parser";
 import prettier from "prettier";
 
 import colors from "colors";
@@ -31,16 +30,14 @@ export const blurhashPlugin = publicPath => () => {
         const parent = ancestors[ancestors.length - 1];
         const index = parent.children.indexOf(node);
 
-        const newNode = HTMLParser.parse(`<div>
+        const newNode = `<div>
         <img />
         <span>Hey there 2</span>
-        </div>`);
+        </div>`;
 
         parent.children[index] = {
           type: "html",
-          value: prettier
-            .format(newNode.outerHTML, { parser: "html" })
-            .trimEnd(),
+          value: prettier.format(newNode, { parser: "html" }).trimEnd(),
         };
       } catch (er) {
         console.log(colors.red(`Error processing ${imagePath}\n\t`, er));
