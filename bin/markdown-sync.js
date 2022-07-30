@@ -21,6 +21,7 @@ const files = glob.sync(inputGlob, { root: directoryProcess });
 const publicPath = path.resolve(directoryProcess, "public");
 
 if (fs.existsSync(publicPath)) {
+  console.log(colors.blue(`Found path to public folder at: ${publicPath}\n\n`));
   run();
 } else {
   console.log(

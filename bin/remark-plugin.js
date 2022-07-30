@@ -15,6 +15,10 @@ export const blurhashPlugin = publicPath => () => {
 
       const originalImg = imagePath;
       if (!/http/.test(imagePath)) {
+        if (imagePath.startsWith("/")) {
+          imagePath = imagePath.substr(1);
+        }
+
         imagePath = path.resolve(publicPath, imagePath);
       }
 
