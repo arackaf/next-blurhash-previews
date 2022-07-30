@@ -1,6 +1,6 @@
 {
   "name": "next-blurhash-previews",
-  "version": "0.0.1",
+  "version": "0.0.3-beta2",
   "description": "",
   "main": "index.js",
   "bin": {
@@ -9,7 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "vite build",
-    "build-watch": "vite build -w"
+    "build-watch": "vite build -w",
+    "prepare": "npm run build"
   },
   "type": "module",
   "repository": {
