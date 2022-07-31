@@ -6,6 +6,8 @@ import { fileURLToPath } from "url";
 
 import { reporter } from "vfile-reporter";
 import { remark } from "remark";
+import remarkFrontmatter from "remark-frontmatter";
+
 import glob from "glob";
 import colors from "colors";
 
@@ -37,6 +39,7 @@ async function runFile(file) {
   return new Promise(res => {
     remark()
       .use(blurhashPlugin(publicPath))
+      .use(remarkFrontmatter)
       .process(buffer)
       .then(outputFile => {
         fs.writeFileSync(file, outputFile.toString());
