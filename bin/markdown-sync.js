@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import { reporter } from "vfile-reporter";
 import { remark } from "remark";
 import remarkFrontmatter from "remark-frontmatter";
+import remarkStringify from "remark-stringify";
 
 import glob from "glob";
 import colors from "colors";
@@ -40,6 +41,9 @@ async function runFile(file) {
     remark()
       .use(blurhashPlugin(publicPath))
       .use(remarkFrontmatter)
+      .use(remarkStringify, {
+        fences: true,
+      })
       .process(buffer)
       .then(outputFile => {
         fs.writeFileSync(file, outputFile.toString());
