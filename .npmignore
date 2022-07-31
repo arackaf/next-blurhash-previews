@@ -1,0 +1,12 @@
+build
+node_modules
+next-runner
+tsconfig.json
+tsconfig.node.json
+yalc.lock
+.DS_Store
+.git
+.gitignore
+.npmignore
+.prettierrc
+.yalc
