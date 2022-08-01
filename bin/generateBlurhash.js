@@ -18,10 +18,24 @@ export async function getSharpImage(imgPath) {
 }
 
 export async function getBlurhash(path) {
-  const blurhashImage = await getSharpImage(path);
+  let blurhashImage = await getSharpImage(path);
   const dimensions = await blurhashImage.metadata();
 
   const { width, height } = dimensions;
+  let blurhashW = width;
+  let blurhashH = height;
+
+  if (width > 200) {
+    const newBuffer = await blurhashImage.resize(200).toBuffer();
+    blurhashImage = sharp(newBuffer);
+
+    let newMetadata = await blurhashImage.metadata();
+    blurhashW = newMetadata.width;
+    blurhashH = newMetadata.height;
+    console.log("Adjustied", blurhashW, blurhashH);
+  } else {
+    console.log("Not adjusting", path, width);
+  }
 
   return new Promise((res, rej) => {
     blurhashImage
@@ -34,13 +48,19 @@ export async function getBlurhash(path) {
           } else {
             const blurhash = encode(
               new Uint8ClampedArray(buffer),
-              width,
-              height,
+              blurhashW,
+              blurhashH,
               4,
               4
             );
             if (isBlurhashValid(blurhash)) {
-              return res({ blurhash, w: width, h: height });
+              return res({
+                blurhash,
+                dw: width,
+                dh: height,
+                w: blurhashW,
+                h: blurhashH,
+              });
             } else {
               console.log("FAIL");
               return rej("FAIL");

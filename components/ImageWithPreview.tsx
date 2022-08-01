@@ -1,6 +1,12 @@
 import { decode } from "../node_modules/blurhash/dist/esm/index";
 
-type blurhash = { w: number; h: number; blurhash: string };
+type blurhash = {
+  w: number;
+  h: number;
+  dw: number;
+  dh: number;
+  blurhash: string;
+};
 
 class ImageWithPreview extends HTMLElement {
   sd: ShadowRoot;
@@ -49,18 +55,23 @@ class ImageWithPreview extends HTMLElement {
   }
 
   #imgLoad = () => {
-    this.sd.innerHTML = `<slot name="image"></slot>`;
+    //this.sd.innerHTML = `<slot name="image"></slot>`;
   };
 
   attributeChangedCallback(name) {
     if (this.#canvasEl && name === "preview") {
-      this.#updatePreview();
+      const time = this.#updatePreview();
+      console.log(this.getAttribute("preview"), this.getAttribute("url"), time);
     }
   }
 
   #updatePreview() {
     const previewObj = JSON.parse(this.getAttribute("preview")!);
+
+    const start = +new Date();
     updateBlurHashPreview(this.#canvasEl, previewObj);
+    const end = +new Date();
+    return end - start;
   }
 }
 
@@ -69,14 +80,16 @@ if (!customElements.get("blurhash-image")) {
 }
 
 function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
-  const { w: width, h: height } = preview;
+  const { w, h, dw, dh } = preview;
 
-  canvasEl.width = width;
-  canvasEl.height = height;
+  canvasEl.width = w;
+  canvasEl.height = h;
 
-  const pixels = decode(preview.blurhash, width, height);
+  const pixels = decode(preview.blurhash, w, h);
   const ctx = canvasEl.getContext("2d")!;
-  const imageData = ctx.createImageData(width, height);
+  const imageData = ctx.createImageData(w, h);
   imageData.data.set(pixels);
   ctx.putImageData(imageData, 0, 0);
+
+  console.log("base64", canvasEl.toDataURL());
 }
