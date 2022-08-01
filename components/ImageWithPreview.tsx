@@ -1,4 +1,4 @@
-import { decode } from "../node_modules/blurhash/dist/esm/index";
+import { decode } from "blurhash/dist/esm";
 
 type blurhash = { w: number; h: number; blurhash: string };
 
@@ -8,6 +8,7 @@ class ImageWithPreview extends HTMLElement {
 
   static observedAttributes = ["preview"];
 
+  #connected = false;
   get #imgEl(): any {
     return this.querySelector("img");
   }
@@ -38,6 +39,7 @@ class ImageWithPreview extends HTMLElement {
   };
 
   connectedCallback() {
+    this.#connected = true;
     if (!this.#checkReady()) {
       this.mo = new MutationObserver(this.#checkReady);
       this.mo.observe(this, {
@@ -49,7 +51,9 @@ class ImageWithPreview extends HTMLElement {
   }
 
   #imgLoad = () => {
-    this.sd.innerHTML = `<slot name="image"></slot>`;
+    setTimeout(() => {
+      this.sd.innerHTML = `<slot name="image"></slot>`;
+    }, 19000);
   };
 
   attributeChangedCallback(name) {
@@ -59,6 +63,10 @@ class ImageWithPreview extends HTMLElement {
   }
 
   #updatePreview() {
+    if (!this.#connected || !this.getAttribute("preview")) {
+      return;
+    }
+
     const previewObj = JSON.parse(this.getAttribute("preview")!);
     updateBlurHashPreview(this.#canvasEl, previewObj);
   }
@@ -69,12 +77,19 @@ if (!customElements.get("blurhash-image")) {
 }
 
 function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
-  const { w: width, h: height } = preview;
-
+  const { w: width, h: height, blurhash } = preview;
   canvasEl.width = width;
   canvasEl.height = height;
 
-  const pixels = decode(preview.blurhash, width, height);
+  const worker = new Worker("/canvas-worker.js");
+
+  const offscreen = (canvasEl as any).transferControlToOffscreen();
+  worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
+    offscreen,
+  ]);
+
+  return;
+  const pixels = decode(blurhash, width, height);
   const ctx = canvasEl.getContext("2d")!;
   const imageData = ctx.createImageData(width, height);
   imageData.data.set(pixels);
