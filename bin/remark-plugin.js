@@ -10,7 +10,7 @@ export const blurhashPlugin = publicPath => () => {
     let outstanding = 0;
 
     visitParents(tree, "image", async (node, ancestors) => {
-      let { url: imagePath, alt } = node;
+      let { url: imagePath, alt = "" } = node;
 
       const originalImg = imagePath;
       if (!/http/.test(imagePath)) {
@@ -28,6 +28,8 @@ export const blurhashPlugin = publicPath => () => {
 
         const blurHash = await getBlurhash(imagePath);
 
+        const { w, h } = blurHash;
+
         console.log(
           colors.green(`Finished processing ${imagePath}\n\t`, blurHash)
         );
@@ -37,7 +39,7 @@ export const blurhashPlugin = publicPath => () => {
 
         const newNode = `
 <blurhash-image url="${originalImg}" preview='${JSON.stringify(blurHash)}'>
-  <img alt="${alt || ""}" src="${originalImg}" slot="image" />
+  <img alt="${alt}" width="${w}" src="${originalImg}" slot="image" />
   <canvas width="${blurHash.w}" height="${blurHash.h}" slot="preview"></canvas>
 </blurhash-image>`.trim();
 
