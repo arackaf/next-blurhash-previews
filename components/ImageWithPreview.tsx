@@ -72,7 +72,10 @@ if (!customElements.get("blurhash-image")) {
   customElements.define("blurhash-image", ImageWithPreview);
 }
 
-var worker;
+const workerBlob = new Blob(
+  [document.querySelector("#next-blurhash-worker-script")!.textContent!],
+  { type: "text/javascript" }
+);
 
 function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   const { w: width, h: height, blurhash } = preview;
@@ -80,13 +83,27 @@ function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   canvasEl.height = height;
 
   if (true) {
-    if (!worker) {
-      const workerBlob = new Blob(
-        [document.querySelector("#next-blurhash-worker-script")!.textContent!],
-        { type: "text/javascript" }
-      );
-      worker = new Worker(window.URL.createObjectURL(workerBlob));
-    }
+    const worker = new Worker(window.URL.createObjectURL(workerBlob));
+
+    const s = +new Date();
+
+    const emptyCanv = document
+      .createElement("canvas")
+      // @ts-ignore
+      .transferControlToOffscreen();
+
+    worker.postMessage(
+      {
+        canvas: emptyCanv,
+        width: 50,
+        height: 50,
+        blurhash: "L05E$[offQofoffQfQfQfQfQfQfQ",
+      },
+      [emptyCanv]
+    );
+    const e = +new Date();
+    console.log("bootstrap", e - s);
+
     const offscreen = (canvasEl as any).transferControlToOffscreen();
     worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
       offscreen,

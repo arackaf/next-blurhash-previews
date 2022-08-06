@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import colors from "colors";
 
 import sharp from "sharp";
 import fetch from "node-fetch";
@@ -7,7 +8,7 @@ import { encode, isBlurhashValid } from "blurhash";
 
 const __dirname = process.cwd();
 
-export async function getSharpImage(imgPath) {
+async function getSharpImage(imgPath) {
   if (/^http/.test(imgPath)) {
     const buffer = await fetch(imgPath)
       .then(fetchResponse => fetchResponse.arrayBuffer())
@@ -19,26 +20,36 @@ export async function getSharpImage(imgPath) {
     const dir = path.dirname(imgPath);
     const basename = path.basename(imgPath, ext);
 
+    const realImage = sharp(imgPath);
+
     const previewOption = path.join(dir, basename + "-preview" + ext);
-    console.log("Trying preview", previewOption);
+    console.log(colors.blue("Trying preview", previewOption));
 
     if (fs.existsSync(previewOption)) {
-      console.log("Preview found");
-      return sharp(previewOption);
+      console.log(colors.green("Preview found"));
+
+      return [realImage, sharp(previewOption)];
     }
 
-    return sharp(imgPath);
+    return [realImage];
   }
 }
 
 export async function getBlurhash(path) {
-  const blurhashImage = await getSharpImage(path);
+  const [blurhashImage, previewImage] = await getSharpImage(path);
   const dimensions = await blurhashImage.metadata();
 
-  const { width, height } = dimensions;
+  const { width: displayWidth, height: displayHeight } = dimensions;
+  let { width, height } = dimensions;
+
+  if (previewImage) {
+    const dimensions = await previewImage.metadata();
+
+    ({ width, height } = dimensions);
+  }
 
   return new Promise((res, rej) => {
-    blurhashImage
+    (previewImage ?? blurhashImage)
       .raw()
       .ensureAlpha()
       .toBuffer((err, buffer) => {
@@ -54,7 +65,13 @@ export async function getBlurhash(path) {
               4
             );
             if (isBlurhashValid(blurhash)) {
-              return res({ blurhash, w: width, h: height });
+              return res({
+                blurhash,
+                w: width,
+                h: height,
+                dw: displayWidth,
+                dh: displayHeight,
+              });
             } else {
               console.log("FAIL");
               return rej("FAIL");

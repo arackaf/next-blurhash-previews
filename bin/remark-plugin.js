@@ -28,7 +28,7 @@ export const blurhashPlugin = publicPath => () => {
 
         const blurHash = await getBlurhash(imagePath);
 
-        const { w, h } = blurHash;
+        const { w, h, dw, dh } = blurHash;
 
         console.log(
           colors.green(`Finished processing ${imagePath}\n\t`, blurHash)
@@ -40,7 +40,7 @@ export const blurhashPlugin = publicPath => () => {
         const newNode = `
 <blurhash-image url="${originalImg}" preview='${JSON.stringify(blurHash)}'>
   <img alt="${alt}" width="${w}" height="${h}" src="${originalImg}" slot="image" />
-  <canvas width="${w}" height="${h}" slot="preview"></canvas>
+  <canvas width="${w}" height="${h}" style="width: ${dw}px; height: auto;" slot="preview"></canvas>
 </blurhash-image>`.trim();
 
         parent.children[index] = {
