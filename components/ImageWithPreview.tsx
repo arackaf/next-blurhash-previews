@@ -1,3 +1,5 @@
+import { decode } from "blurhash/dist/esm";
+
 type blurhash = { w: number; h: number; blurhash: string };
 
 class ImageWithPreview extends HTMLElement {
@@ -79,17 +81,28 @@ function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   canvasEl.width = width;
   canvasEl.height = height;
 
-  if (true) {
-    if (!worker) {
-      const workerBlob = new Blob(
-        [document.querySelector("#next-blurhash-worker-script")!.textContent!],
-        { type: "text/javascript" }
-      );
-      worker = new Worker(window.URL.createObjectURL(workerBlob));
-    }
-    const offscreen = (canvasEl as any).transferControlToOffscreen();
-    worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
-      offscreen,
-    ]);
-  }
+  const start = +new Date();
+
+  const pixels = decode(blurhash, width, height);
+  const ctx = canvasEl.getContext("2d")!;
+  const imageData = ctx.createImageData(width, height);
+  imageData.data.set(pixels);
+  ctx.putImageData(imageData, 0, 0);
+
+  const end = +new Date();
+
+  console.log("Blurhash", end - start);
+  // if (true) {
+  //   if (!worker) {
+  //     const workerBlob = new Blob(
+  //       [document.querySelector("#next-blurhash-worker-script")!.textContent!],
+  //       { type: "text/javascript" }
+  //     );
+  //     worker = new Worker(window.URL.createObjectURL(workerBlob));
+  //   }
+  //   const offscreen = (canvasEl as any).transferControlToOffscreen();
+  //   worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
+  //     offscreen,
+  //   ]);
+  // }
 }
