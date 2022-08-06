@@ -72,18 +72,21 @@ if (!customElements.get("blurhash-image")) {
   customElements.define("blurhash-image", ImageWithPreview);
 }
 
+var worker;
+
 function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   const { w: width, h: height, blurhash } = preview;
   canvasEl.width = width;
   canvasEl.height = height;
 
   if (true) {
-    const workerBlob = new Blob(
-      [document.querySelector("#next-blurhash-worker-script")!.textContent!],
-      { type: "text/javascript" }
-    );
-
-    const worker = new Worker(window.URL.createObjectURL(workerBlob));
+    if (!worker) {
+      const workerBlob = new Blob(
+        [document.querySelector("#next-blurhash-worker-script")!.textContent!],
+        { type: "text/javascript" }
+      );
+      worker = new Worker(window.URL.createObjectURL(workerBlob));
+    }
     const offscreen = (canvasEl as any).transferControlToOffscreen();
     worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
       offscreen,

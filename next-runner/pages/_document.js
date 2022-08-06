@@ -7,9 +7,9 @@ export default class MyDocument extends Document {
       <Html>
         <Head />
         <body>
+          {imagePreviewBootstrap}
           <Main />
           <NextScript />
-          {imagePreviewBootstrap}
         </body>
       </Html>
     );

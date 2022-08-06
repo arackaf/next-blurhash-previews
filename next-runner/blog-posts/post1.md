@@ -1,303 +1,251 @@
 ---
-title: Loading css, css-modules, and Sass with webpack
-date: "2019-05-13T10:00:00.000Z"
-description: An introduction to loading css with webpack, and enabling css-modules, and SASS in the process
+title: The What, Why and How of DynamoDB
+date: "2021-07-06T10:00:00.000Z"
+description: A high-level introduction to DynamoDB
 ---
 
-The css ecosystem is immense and, at times, intimidating. This post will start at the beginning. We'll go over loading basic css with webpack, then move on to css modules, and wrap up with Sass. If you have some experience loading css in webpack-based web applications, some of this may be old news for you.
+DynamoDB is an incredible database whose popularity is quickly rising. Unfortunately, it can be difficult to wrap your head around how it works, and why. It's designed to have some very ambitious performance characteristics, and for this reason its api is rather different, and much more limited compared to what developers might be used to with other databases.
 
-Note that while the code samples in this post use React, none of the concepts are specific to it in the least. Also, this post does _not_ cover css-in-js, for the simple reason that I haven't yet gotten around to diving into that ecosystem; I'm hoping by the time I do, it'll be a bit less crowded :)
+Rather than spill out an overview of the api calls, along with some code samples to save, and update data, this post will take a step back, explain how traditional databases work, how Dynamo differs, and why. Some of this content may seem tedious at first, but it's what I wish I had read when I started poking around Dynamo. This post is **heavily** inspired by Alex DeBrie's [DynamoDB book](https://www.dynamodbbook.com/), which I highly recommend. If you're interested in learning more, you absolutely cannot find a better resource than that.
 
-## Starting at the beginning: basic css loading
+## How databases work: indexes, seeks and scans, oh my!
 
-Let's say we're rendering this component.
+Let's take a whirlwind tour of how traditional databases work. I'll be using SQL Server, since that's what I know best, but these concepts are generally applicable, even for most NoSQL databases like Mongo. Let's say we have the following table
 
-```jsx
-const Component = () => (
-  <div className="pane">
-    <span>Pane Content</span>
-    <ul className="list">
-      <li className="list-item">Item 1</li>
-      <li className="list-item">Item 2</li>
-      <li className="list-item">Item 3</li>
-    </ul>
-  </div>
-);
+```sql
+CREATE TABLE Users (
+  id int IDENTITY(1,1) PRIMARY KEY,
+  employeeId int,
+  [name] varchar(500),
+  email varchar(500)
+)
 ```
 
-Without accompanying styles, it'll look something like this.
+Now let's say we run the following query:
 
-![Unstyled Component](/css-modules/unstyledComp.png)
-
-Let's add some basic styling. Let's start simple, and have the JS module this component sits in import a css file, with standard, global styling rules. The import will look like this
-
-```javascript
-import "./styles.css";
+```sql
+SELECT employeeId, id
+FROM [dbo].[Users]
+WHERE employeeId = 552
 ```
 
-Let's create that file, and add some purposefully ugly styles
+<blurhash-image url="/dynamo-introduction/img1.png" preview='{"blurhash":"U*RfkB%MkC-;_3bHkCofofWBayWB~qofWBof","w":10,"h":5}'>
+  <img alt="Query results" width="10" height="5" src="/dynamo-introduction/img1.png" slot="image" />
+  <canvas width="10" height="5" slot="preview"></canvas>
+</blurhash-image>
 
-```css
-.pane {
-  background-color: green;
-  max-width: 300px;
-}
+This query will be processed by a table scan, which we can see by looking at the execution plan.
 
-.pane span {
-  color: purple;
-}
+<blurhash-image url="/dynamo-introduction/img2-sized.png" preview='{"blurhash":"UxR{#?-;t7-;~qoff6t7ofj[oJoe~qt7oft7","w":10,"h":5}'>
+  <img alt="Query execution plan" width="10" height="5" src="/dynamo-introduction/img2-sized.png" slot="image" />
+  <canvas width="10" height="5" slot="preview"></canvas>
+</blurhash-image>
 
-.list {
-  margin-left: 20px;
-}
+Note that while it says “clustered index scan,” it is in fact scanning the table, since the clustered index *is the* table, in SQL Server, for tables with a primary key defined.
 
-.list-item {
-  list-style-type: lower-greek;
-}
+The engine will simply look through each and every record, and return those which match the filter clause. This query will run blazingly fast … when there's a tiny bit of data; it will run maddeningly slow when there's a massive amount of data, and everything in between.
+
+### An index to the rescue!
+
+Let's say we anticipate a large amount of data in this table, and therefore want to improve this query's performance. We’d likely do so by adding an index.
+
+```sql
+CREATE INDEX idx_users_employeeId ON USERS (employeeId);
 ```
 
-As we have it, this code leads to the following webpack error
+Now when we run our same query, the engine will perform a seek.
 
-![Loading error](/css-modules/loadingError.png)
+<blurhash-image url="/dynamo-introduction/img3-sized.png" preview='{"blurhash":"U]R:KN%Mof-;~qt7ayt7j[j[oLoL~qofoft7","w":10,"h":4}'>
+  <img alt="Query execution plan" width="10" height="4" src="/dynamo-introduction/img3-sized.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
 
-webpack only knows how to load standard JavaScript by default. To add other content, like css, we need to tell webpack how to handle it. Let's do that now. First, install the `mini-css-extract-plugin` and `css-loader` plugins, using your favorite package manager, in your favorite cli.
+What does that mean? Let's take a very high level view of how database indexes work. They're usually stored in a data structure known as a B+ tree. There's tons of comp sci-rich resources where you can learn all about them, but for now, think of a database index like the index of a book. A book's index has an ordered list of all the terms the book has, along with a page number. Database indexes are similarly ordered based on whatever they're indexing, and contain a pointer to the page in memory where the actual record is stored (they'll also have the primary key for the record, and any "covering" fields, which we'll get to).
 
-Now load the mini css extract plugin in your webpack.config.js file.
+But a flat list of all the terms in a book is still pretty big. Nobody would ever start reading an index at aardvark, and continue on until they either found what they were looking for, or hit zebra, and with it the end of the index. Typically folks will just thumb through the pages of a book’s index, looking at the words on each page, and just sort of find what they want. But if we were to force ourselves to think about how we'd do this algorithmically, we'd probably pick the middle page of the index, look at the first, and last word listed. If our target is in between, we just start reading and find the word. If our word is less than that smallest word, we'd pick the middle page of all the pages in the first half of the index, and repeat. And of course if the word is greater than the last word on our page, we'd pick the middle page in the remaining pages in the second half of the index, and repeat. With each repetition, we'd cut the number of pages we're searching in half. That means the algorithm would run in `O(lgN)` time, or logarithmic complexity.
 
-```javascript
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+Logarithmic algorithms are incredibly fast. They're basically the inverse of exponential algorithms. Instead of a constant, like 2, multiplied by itself N times, we have N being divided by a constant repeatedly until we get to 1. That's what a logarithm means. *log<sub>2</sub>16*, or *lg16* for short, means how many times do I divide 16 by 2, until I get to 1, which is 4. To give an idea of how well logarithmic algorithms perform, note that *lg* of 4 billion is about 32, since *2<sup>32</sup>* is about 4 billion. That's why you could never have more than 4GB of RAM on a 32 bit computer: you simply cannot create more than 4 billion unique addresses with just 32 bits.
+
+But a real B+ tree is even better than this. Let’s dump the analogy and just look at how it works. A B+ tree is focused on getting you to the right page in memory, which contains the record you’re searching for. It starts with a root page, with a series of indexed values, with pointers to memory pages containing all values less than this value. Take this example
+
+<blurhash-image url="/dynamo-introduction/img4-sized.png" preview='{"blurhash":"U~Rfh7%Mxa-;~qt7xaxuXRazs:of~qt7j[t7","w":10,"h":3}'>
+  <img alt="B+ Tree 1" width="10" height="3" src="/dynamo-introduction/img4-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
+
+The root record is telling us that all values less than 9 are in the memory page to the left, all values less than 21 are in the middle page, and so on. The pink boxes are leaf nodes. They’ll contain the indexed value (2, 7, 9, 10, 15, 21, etc., in the picture), any covering values, which we’ll get to, and also, not shown, but a pointer to the page in memory where actual record is, as stored in the table.
+
+These leaf pages also contain pointers to the **next** page, which will come in handy for range queries. For example, if you search for all values >= 10, the database engine will locate value 10, and then just walk the rest of the values in that page, then follow the pointer to the next page, consume those values, and so on. In fact, in real life those pointers between leaf pages are bidirectional, with each page containing a pointer to the next page, and also the previous page, which means an index can handle range query in either ascending or descending order.
+
+But what happens when our table gets so big that we can no longer have a single root page with a pointer to a single memory page with all values less than a certain key. Pages in memory are a fixed size, and pointers are not free, after all. When this happens, the B+ tree will just grow, adding more non-leaf levels.
+
+<blurhash-image url="/dynamo-introduction/img5-sized.png" preview='{"blurhash":"U~QcxP%M%2-p_Nt7%1xtXRkBs:kB~qt7WVt7","w":10,"h":3}'>
+  <img alt="B+ Tree 2" width="10" height="3" src="/dynamo-introduction/img5-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
+
+It’s the same idea as before, except now you need to load a total of three pages in memory, to get to your target, instead of two. Before we read the root, which took us right to our destination. Now we read the root, which takes us to another page of pointers, which then takes us to our destination.
+
+Let’s see this in action. Let's say we run this query
+
+```sql
+SELECT employeeId, id
+FROM [dbo].[Users]
+WHERE employeeId > 3
 ```
 
-Now, in the same config file, there should be a `module` object at the top of the config object, and somewhere under that, there should be a `rules` array. If either are missing, add them. Now, under `rules`, add this entry
+<blurhash-image url="/dynamo-introduction/img6-sized.png" preview='{"blurhash":"UxR{#=-;t7-;~qoyayt7j[oeoeoL~qofoft7","w":10,"h":5}'>
+  <img alt="Query execution plan" width="10" height="5" src="/dynamo-introduction/img6-sized.png" slot="image" />
+  <canvas width="10" height="5" slot="preview"></canvas>
+</blurhash-image>
 
-```javascript
-{
-  test: /\.css$/,
-  use: [MiniCssExtractPlugin.loader, "css-loader"]
-},
+As we can see, SQL Server ran a seek to find the first value of 3, and then just kept reading the rest of the values. Cool! This query is a bit limited though. Let's also query for each user's name, and see what happens.
+
+```sql
+SELECT employeeId, id, [name]
+FROM [dbo].[Users]
+WHERE employeeId = 552
 ```
 
-Finally, under the plugins array, also at the top level of your webpack.config object (add it if necessary), add this
+<blurhash-image url="/dynamo-introduction/img7.png" preview='{"blurhash":"U|RfnJ%May%M_3a}a}t7ofWBayj[~qofaxt7","w":10,"h":4}'>
+  <img alt="Query results" width="10" height="4" src="/dynamo-introduction/img7.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
 
-```javascript
-new MiniCssExtractPlugin({
-  filename: isProd ? "[name]-[contenthash].css" : "[name].css"
-});
+The index we added indexed on `employeeId`. Each leaf contains the employeeId, the primary key, and a pointer to the (page in memory containing the) full record. You might think SQL Server would do a seek on our index, then follow the pointer to the record in the table. Instead, we see this
+
+<blurhash-image url="/dynamo-introduction/img8-sized.png" preview='{"blurhash":"U@R:KN%Mog-;~qt7ayt7oMjuoKoL~qofoft7","w":10,"h":4}'>
+  <img alt="Query execution plan" width="10" height="4" src="/dynamo-introduction/img8-sized.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
+
+Interesting. The engine decided to just scan the main table and get what we asked for. This is almost certainly because we have a tiny amount of data in the table. SQL Server maintains metadata about the size of tables and indexes to help it make decisions like this. It also allows us to force it to use a particular index by using a “hint,” which we *usually* want to avoid, and let SQL Server to make smart choices for us. But just for fun, let’s see what it looks like
+
+```sql
+SELECT employeeId, id, [name]
+FROM [dbo].[Users] WITH (INDEX(idx_users_employeeId))
+WHERE employeeId = 552
 ```
 
-If you're new to webpack, and that went a little too fast for you, check out the [webpack docs](https://webpack.js.org/plugins/mini-css-extract-plugin/#root) for a slower treatment of this.
+<blurhash-image url="/dynamo-introduction/img9-sized.png" preview='{"blurhash":"U|SPX^%Mof-;~qofWBt7j[j[aeay~qt7j[t7","w":10,"h":4}'>
+  <img alt="Query execution plan" width="10" height="4" src="/dynamo-introduction/img9-sized.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
 
-Now, if we restart webpack, and reload our page, we should see this disgusting, but technically correct result
+There we go. Key Lookup is the process by which SQL Server grabs the full row from the main table, and the Nested Loops is the process of combining them together.
 
-![Unstyled Component](/css-modules/styledComponent.png)
+This is what SQL Server would have done with any real amount of data, and it would kill our performance, compared to the simple seek if we were pulling back a lot of records. Before, we could seek to a particular value in a small number of page reads. But now, if our query returned 100 rows, each of those 100 rows would need to do a lookup in the main table. This latter step would dominate the performance of this query.
 
-"Success" - hooray.
+Without getting too deep in the weeds, we could solve this particular problem by adding what's called an "included" field. That means the index stays exactly as it is, except the "leaf" pages, which contain the indexed value, the primary key, and pointer to memory, would now also "include" whatever field(s) we add. You can include as many fields as you want, but as you do, your index grows in size. When an index can "cover" all fields a query is looking for, by some combination of the indexed fields, the primary key, and included fields, it's known as a "covering index," and will usually be quite fast.
 
-## Adding CSS Modules
+Let’s create a new index
 
-Right now we have code-split css. We can load css within any JavaScript module which uses it, and the CSS will only load if, and when that JS module is loaded. However, the css is global; if we add style rules for `list-item` in any other .css file, they'll conflict with the styles in this one. Wouldn't it be nice if we could have these styles be scoped only to the JS module which loads them? We can, with css-modules.
-
-css-modules are a pre-processor step on your css file. It runs through all of your class names, and makes them unique. Moreover, it creates an exported object from the css file, on which these unique class names are exposed.
-
-To enable this behavior, we'll first tweak the webpack loader rule, like so
-
-```javascript
-{
-  test: /\.css$/,
-  use: [
-    MiniCssExtractPlugin.loader,
-    {
-      loader: "css-loader",
-      options: { modules: true, exportOnlyLocals: false }
-    }
-  ]
-};
+```sql
+CREATE INDEX idx_users_employeeId_inc_name
+ON USERS (employeeId) INCLUDE (name);
 ```
 
-Note that the `exportOnlyLocals` may not be needed, as it should be the default; however, I've seen weird errors without it.
+and re-run our query, without the hint.
 
-As we have it, our styles will still be loaded, but exposed behind dynamically generated class names. To apply them to our component at development time, we need to grab them off of the css module. Let's do that now
+Boom
 
-```jsx
-import styles from "./styles.css";
-const { pane, list, ["list-item"]: listItem } = styles;
+<blurhash-image url="/dynamo-introduction/img10.png" preview='{"blurhash":"U}Rp8-%Maz%M_3bHfkt7ofWBayj[~qofayt7","w":10,"h":4}'>
+  <img alt="Query results" width="10" height="4" src="/dynamo-introduction/img10.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
 
-const Component = () => (
-  <div className={pane}>
-    <span>Pane Content</span>
-    <ul className={list}>
-      <li className={listItem}>Item 1</li>
-      <li className={listItem}>Item 2</li>
-      <li className={listItem}>Item 3</li>
-    </ul>
-  </div>
-);
-```
+<blurhash-image url="/dynamo-introduction/img11-sized.png" preview='{"blurhash":"U{S6Pk%Mof-;~qogayt7oMj[jsj[~qofoft7","w":10,"h":4}'>
+  <img alt="Query execution plan" width="10" height="4" src="/dynamo-introduction/img11-sized.png" slot="image" />
+  <canvas width="10" height="4" slot="preview"></canvas>
+</blurhash-image>
 
-We now import an object from the css file. The keys of this object are the class names we wrote originally in the css file, and the property values are the dynamically generated class names. Note the weird syntax around the `list-item` class. JavaScript identifiers cannot be hyphenated, so you'll either need to alias it, or just use valid JS names in your css modules.
+Our entire query was satisfied with a single index seek; it will scale incredibly well.
 
-_Edit_ - after publishing this, Marc Bernstein pointed out on Twitter that css-loader has a `camelCase` option that will convert hyphenated class names to camel-cased equivalents. You can read the docs on it [here](https://github.com/webpack-contrib/css-loader#camelcase)
+### Wrapping up the theory
 
-Applying everything like so should reveal the same ugly output as before
+Thank you so much for sticking with me. The point of all this is to show that, with traditional databases, you have a wide open query language, which you combine with low level tools to try to keep your queries as fast as possible. Obviously the queries I showed were extremely simple. Usually you'll deal with joins, groupings, unions, and of course queries can specify any arbitrary sort order. When a query is slow, you'll usually look at the execution plan, see something vastly more complex than anything I've shown, find the pieces that are making things slow (table scans are usually the first thing you look for), and then try to figure out how to guide the engine into a faster query execution: add or tweak indexes, add a materialized view, add query hints, etc.
 
-![Unstyled Component](/css-modules/styledComponent.png)
+And this of course assumes that a single server will be big enough to hold all of your data. When that’s no longer is true, you'll need to "shard" your data across many different servers. Sharding is a topic unto itself. Suffice it to say, it's hard, there's a lot you have to get right, and some databases make it easier than others.
 
-## Best of Both Worlds?
+## DynamoDB
 
-So far so good, but what if, like me, you think global styles aren't so bad, _sometimes_. What if you have some styles that you plan to be universal in your app, used almost everywhere, and manually importing them as dynamic values just isn't worth the effort? Examples might include a `.btn`, `.table`, or even a `.pane` class. What if the `.pane` class is intended to be used far and wide, with exactly one meaning. Can we make that class (and others) be global, while using css-modules for module-specific stylings, like our list classes, above.
+Dynamo takes a fundamentally different approach. Rather than giving you a wonderfully flexible querying language, some low level indexing primitives, and wishing you luck, it's structured in such a way that you're essentially forced to make fast, scalable queries.
 
-You can, and you have two options: you can define each and every global css class with `:global()` (see the [css-modules docs](https://github.com/css-modules/css-modules) for more info), or, my preferred approach, you can use a naming scheme to differentiate global css files from css-modules.
+What follows is the high level introduction I wish I had started with, when I got interested in Dynamo. I promise I'm barely scratching the surface.
 
-Specifically, what if we decide that files ending with `.module.css` are css modules, and any other `.css` file is an old-school, global css file. webpack makes this possible with the `oneOf` construct. Basically, turn your entry in the `rules` section, from before, into this
+Dynamo is a NoSQL database. It enforces no schema on you, and allows you to store things like lists, and objects inside individual fields. But please don't be fooled into thinking it's like most other NoSQL databases. MongoDB has a lot more in common with SQL Server, than it does with Dynamo, and that was true even before Mongo added joins and transactions.
 
-```javascript
-{
-  test: /\.css$/,
-  oneOf: [
-    {
-      test: /\.module\.css$/,
-      use: [
-        MiniCssExtractPlugin.loader,
-        {
-          loader: "css-loader",
-          options: { modules: true, exportOnlyLocals: false }
-        }
-      ]
-    },
-    {
-      use: [MiniCssExtractPlugin.loader, "css-loader"]
-    }
-  ]
-};
-```
+When you create a table in Dynamo, you'll define a Partition Key. It's sort of like a primary key in other databases, except it doesn't uniquely identify a record (assuming there’s a sort key; stay tuned). What it does is uniquely identify a *list of* records, which will be differentiated, and ordered by the sort key. The sort key is optional, and if you don't create one, the partition key will be **exactly** like a traditional primary key; but as we'll get into, you'll usually define both.
 
-This tells webpack to match `.css` files against the first rule that's valid. If the `.css` file ends in `.module.css`, use css modules. Else, use global styles. Let's try this out.
+When we want to read data from Dynamo, we **always** (for the most part), start with the partition key. That will give you all of the rows defined with that key, ordered by the sort key (you can reverse this order in your query if you want). The best analogy I've heard is that each partition is basically a filing cabinet drawer, containing a bunch of related records. What's especially important here is that Dynamo guarantees that finding an individual partition is always fast. Basically, Dynamo comes sharded, out of the box, by partition key. This is a key point. As I said before, sharding becomes essential when your data scales, and is usually difficult to get right. But Dynamo comes with sharding out of the box, based on the partition key you define.
 
-Let's rename our original `styles.css` to be `styles.module.css`, and remove the `.pane` styles. It'll look like this now
+But we can also also filter down the records from the partition (or filing cabinet drawer) if we want. We can run filters on the sort key as well, with things like equality, less than, greater than, between, etc. It turns out that each individual Dynamo partition is stored as a ... wait for it... B+ tree. This means finding a specific value in your partition is fast.
 
-```css
-.list {
-  margin-left: 20px;
-}
+What's especially important is what you cannot do. You cannot tell Dynamo to sort your query by some random field. You cannot join two tables, or even partitions together. You cannot do groupings. Etc. You can grab one precise value by specifying a partition key, and sort key, or you can grab a range of values within a partition, filtered by the sort key. I'll note that while you **can** also filter by arbitrary (non-key) fields, relying on this for major work is a strong anti-pattern. Dynamo is charging you (literally) based on how much you read, and arbitrary, non-key filters occur *after* the reads happen. Also, these arbitrary filters are applied after your pagination values are applied, which means they won’t work well with pagination. Dynamo is pushing you very strongly toward using key-based filters.
 
-.list-item {
-  list-style-type: lower-greek;
-}
-```
+Again, Dynamo is extremely controlling, and specific about how it expects you to use it. Your data need to be modeled in such a way that your use cases can be satisfied by querying into a specific partition, based on sort key.
 
-Now, let's add a new `styles.css` file, and put our `pane` styles from before, into it
+Before moving on I'll briefly note that Dynamo does allow you to scan the entire table, but there's no way to sort the results, and again, this should not be used for normal querying (unless you want your queries to be slow, and to jack up your AWS bill in the process).
 
-```css
-.pane {
-  background-color: green;
-  max-width: 300px;
-}
+### Modeling Data with Dynamo
 
-.pane span {
-  color: purple;
-}
-```
+Ok so we want to design our data so that it fits into partitions, defined by the partition key, which can be further refined by the sort key. Let's see what that actually *means*. Let's say we wanted to create a table for books. What will each partition contain? Well, we'll need info about the book itself, we'll want records for each author, and let's also store some reviews the book received.
+Here's one way (among many) we could model this.
 
-Now, we'll import the global css styles (probably in one place, at the root of our application) like we did originally
+We'll name our partition key, `pk`, and we'll name our sort key `sk`. These keys *should* have non-descriptive, generic names. They do not represent actual aspects of books, authors, or reviews, but rather are arbitrary values we'll use to rack and stack our data in exactly a way that Dynamo will like. To be crystal clear, each Dynamo partition will contain different types of data. If you’re used to SQL Server tables, or Mongo collections each storing a single entity type, this may be a radical change for you. These Dynamo partitions contain different types of entities. That’s why our pk and sk above are generic, and detached from our domain model.
 
-```javascript
-import "./styles.css";
-```
+Let's say that for any book, the partition key will be `Book#<isbn>`. Again, we’re using this instead of just the isbn alone because with Dynamo, we’re storing many different types of data inside of the same table. Your entire project would likely be stored inside of a single table, organized by partition. If our books are keyed as `Book#978111`, then a publishing house might be keyed as `Publisher#Random House`, a book seller might be keyed as `Seller#Amazon`, etc. Rather than having multiple tables, each with one type of thing, we have one big table, partitioned into different types, based on the partition key.
 
-and we'll grab the dynamic class names for the things we left in the css module, as we did above
+So what kind of values will we have within each Book partition? Let's say we'll have an entry with a sort key of `Metadata` holding info about the book, any number of authors entries, with sort keys of `Author#<name>`, and any number of `Review#<id>` entries for the book's reviews.
 
-```jsx
-import styles from "./styles.module.css";
-const { list, ["list-item"]: listItem } = styles;
+Let's see what it might look like for one book:
 
-const Component = () => (
-  <div className="pane">
-    <span>Pane Content</span>
-    <ul className={list}>
-      <li className={listItem}>Item 1</li>
-      <li className={listItem}>Item 2</li>
-      <li className={listItem}>Item 3</li>
-    </ul>
-  </div>
-);
-```
+<blurhash-image url="/dynamo-introduction/img12-sized.png" preview='{"blurhash":"U~IY5?xua}t7IUj[ayWBD%fQayRj~qt7ayt7","w":10,"h":3}'>
+  <img alt="Dynamo table" width="10" height="3" src="/dynamo-introduction/img12-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
 
-If all went well, everything should look identical to before.
+So if we want to just dump everything about *The Ancestor’s Tale*, we would pull that partition.
 
-## Getting Sassy
+More interestingly, if we want to pull the authors of a book, we pull that partition, and further filter based on sort key values that starts with `Author#`.
 
-Lastly, let's say you want to add Sass. Being subject to normal developer constraints, you certainly can't convert each and every css file to be scss, so you want to support both, side-by-side. Fortunately this is the easiest part of the post. Since scss is a superset of css, we can just run all `.css` and `.scss` files through the `sass-loader` as a first step, and leave all the rest of the css processing the same, as before. Let's see how.
+<blurhash-image url="/dynamo-introduction/img13-sized.png" preview='{"blurhash":"U~G+UNxuj[ofayofayWBRjofayWB~qt7j[of","w":10,"h":3}'>
+  <img alt="Dynamo query" width="10" height="3" src="/dynamo-introduction/img13-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
 
-First, we'll install some new dependencies
+But what if we want to query a specific author, say, Richard Dawkins, and get all of their books? Things aren't looking good. Any query **has** to start with a partition key, but each separate book is its own partition. We definitely don't want to just scan the entire table, looking for items with a sk of Author#Richard Dawkins; that would be slow, and expensive.
 
-```
-npm i node-sass sass-loader --save
-```
+### Hello, GSI
 
-Now, we'll add a slight tweak to our webpack rules
+One of the most important, and powerful features of Dynamo are global, secondary indexes, or GSIs. A GSI allows your to take your table, and basically project a brand new table *from it*, with a brand new partition, and sort key. As you update the table, the index will update automatically. Best of all, the GSI can be queried directly, just like the main table, in exactly the same way.
 
-```javascript
-{
-  test: /\.s?css$/,
-  oneOf: [
-    {
-      test: /\.module\.s?css$/,
-      use: [
-        MiniCssExtractPlugin.loader,
-        {
-          loader: "css-loader",
-          options: { modules: true, exportOnlyLocals: false }
-        },
-        "sass-loader"
-      ]
-    },
-    {
-      use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"]
-    }
-  ]
-};
-```
+Let's get started. Let's build a GSI with `authorName` as the partition key, and `book` as the sort key. I'm simplifying a bit here; usually you should create and maintain dedicated fields for index keys, rather than reuse fields from your model. The reason is, if some other entity type got added to our table with an `authorName` field, it would pollute our index. But for this blog post, it's good enough.
 
-We added `sass-loader` as a new, first loader (loaders are processed from right to left). Did you catch the other change? It's the two `?`'s in the `test` properties. `?` means optional in regular expressions, so all this means is, our rules now apply to both `.css` and `.scss` files. Plain `.css` files are processed by the sass-loader, but again, css is a subset of `scss`, so this is effectively a no-op.
+What this index will do is take the items in our main table, and for those with an `authorName` field, a corresponding partition will be created in our index, with a sort key of `book`. It looks like this.
 
-To make sure things still work, let's convert our css files to scss, add some Sass, and maybe even tweak the styles to be even cooler, and make sure everything still works.
+<blurhash-image url="/dynamo-introduction/img14-sized.png" preview='{"blurhash":"U~MQ-R%MfkxuRjoffQay9FayayRj~qt8WVoz","w":10,"h":3}'>
+  <img alt="Dynamo gsi" width="10" height="3" src="/dynamo-introduction/img14-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
 
-First, for `styles.css`, we'll rename it to `styles.scss`, and add a few upgrades.
+Don’t be fooled by the pk and sk fields. We projected **all** fields from the original table (which includes pk and sk), with a partitionKey of `authorName`, and a sortKey of `book`.
 
-```scss
-$paneColor: pink;
-$paneSpanColor: purple;
+Now if we want to see Richard Dawkins's books, we can query the GSI directly.
 
-.pane {
-  background-color: $paneColor;
-  max-width: 300px;
-}
+<blurhash-image url="/dynamo-introduction/img15-sized.png" preview='{"blurhash":"U}Gb#PxuWBofWBofWBV@RjofWBV@~qt7WBof","w":10,"h":3}'>
+  <img alt="Dynamo gsi query" width="10" height="3" src="/dynamo-introduction/img15-sized.png" slot="image" />
+  <canvas width="10" height="3" slot="preview"></canvas>
+</blurhash-image>
 
-.pane span {
-  color: $paneSpanColor;
-}
-```
+Best of all, this query is always guaranteed to be fast. Our GSI is partitioned by authorName, and again, Dynamo guarantees fast lookups on partitions. We sacrifice a lot of flexibility using Dynamo, but we gain fast, scalable queries.
 
-Now, we'll rename `styles.module.css` to be `styles.modules.scss` and make it look something like this
+### What can Dynamo *not* do?
 
-```scss
-$listStyleType: armenian;
+As we've seen, Dynamo expects us to model our data pretty precisely, for queries we plan ahead, and model for. It is not for flexible querying. If you have use cases which demand flexible, user driven queries and sorting, Dynamo might not be the best for that use case. The good news is, nobody ever said you should use Dynamo for everything. There are lots of databases out there, each with their own pro's and con's. Pick the right ones for your project.
 
-.list {
-  margin-left: 20px;
-}
+## Parting Thoughts
 
-.list-item {
-  list-style-type: $listStyleType;
-}
-```
+When I say we've only scratched the surface of Dynamo, I mean it. As I've said, the best learning resource on the market for Dynamo is Alex DeBrie's [DynamoDB book](https://www.dynamodbbook.com/). It's well over 400 pages, and there's no fluff. There are entire chapters dedicated to modeling relationships, like our authors and books, above; the structure I picked is one option among many, which I mainly picked to help highlight how GSI's work.
 
-after re-starting our webpack process, our cool component should look like this
-
-![Unstyled Component](/css-modules/styledSass.png)
-
-## Concluding thoughts
-
-In the end, a few lines of webpack config allowed us to easily load global, or scoped css, with optional sass processing in either case. Of course this is only scratching the surface of what's possible. There's no shortage of PostCSS, or other plugins you could toss into the loader list.
-
-Happy Coding!
+I hope this post has piqued your curiosity in Dynamo. It's an incredibly exciting product, that has some impressive capabilities.
