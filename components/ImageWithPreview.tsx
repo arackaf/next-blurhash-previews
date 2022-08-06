@@ -1,5 +1,3 @@
-import { decode } from "blurhash/dist/esm";
-
 type blurhash = { w: number; h: number; blurhash: string };
 
 class ImageWithPreview extends HTMLElement {
@@ -34,7 +32,7 @@ class ImageWithPreview extends HTMLElement {
         this.#imgEl.addEventListener("load", this.#imgLoad);
       }
 
-      return true;
+      return 1;
     }
   };
 
@@ -51,9 +49,7 @@ class ImageWithPreview extends HTMLElement {
   }
 
   #imgLoad = () => {
-    setTimeout(() => {
-      this.sd.innerHTML = `<slot name="image"></slot>`;
-    }, 19000);
+    this.sd.innerHTML = `<slot name="image"></slot>`;
   };
 
   attributeChangedCallback(name) {
@@ -81,17 +77,16 @@ function updateBlurHashPreview(canvasEl: HTMLCanvasElement, preview: blurhash) {
   canvasEl.width = width;
   canvasEl.height = height;
 
-  const worker = new Worker("/canvas-worker.js");
+  if (true) {
+    const workerBlob = new Blob(
+      [document.querySelector("#next-blurhash-worker-script")!.textContent!],
+      { type: "text/javascript" }
+    );
 
-  const offscreen = (canvasEl as any).transferControlToOffscreen();
-  worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
-    offscreen,
-  ]);
-
-  return;
-  const pixels = decode(blurhash, width, height);
-  const ctx = canvasEl.getContext("2d")!;
-  const imageData = ctx.createImageData(width, height);
-  imageData.data.set(pixels);
-  ctx.putImageData(imageData, 0, 0);
+    const worker = new Worker(window.URL.createObjectURL(workerBlob));
+    const offscreen = (canvasEl as any).transferControlToOffscreen();
+    worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
+      offscreen,
+    ]);
+  }
 }

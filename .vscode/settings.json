@@ -1,0 +1,10 @@
+{
+  "vsicons.associations.files": [
+    {
+      "icon": "vite",
+      "extensions": ["vite.worker.config.ts"],
+      "filename": true
+    },
+    { "icon": "vite", "extensions": ["vite.wc.config.ts"], "filename": true }
+  ]
+}
