@@ -39,7 +39,7 @@ export const blurhashPlugin = publicPath => () => {
 
         const newNode = `
 <blurhash-image url="${originalImg}" preview='${JSON.stringify(blurHash)}'>
-  <img alt="${alt}" width="${w}" height="${h}" src="${originalImg}" slot="image" />
+  <img alt="${alt}" width="${dw}" height="${dh}" src="${originalImg}" slot="image" />
   <canvas width="${w}" height="${h}" style="width: ${dw}px; height: auto;" slot="preview"></canvas>
 </blurhash-image>`.trim();
 

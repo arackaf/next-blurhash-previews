@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => "imageWithPreview.js",
       name: "imageWithPreview",
     },
-    minify: false,
+    //minify: false,
   },
   plugins: [react()],
 });

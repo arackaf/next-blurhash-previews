@@ -12,7 +12,7 @@ export default defineConfig({
       fileName: () => "workerScript.js",
       name: "workerScript",
     },
-    minify: false,
+    //minify: false,
   },
   plugins: [react()],
 });
