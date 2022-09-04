@@ -32,11 +32,6 @@ class ImageWithPreview extends HTMLElement {
     if (this.#imgEl && this.#canvasEl) {
       this.mo?.disconnect();
 
-      console.log("checkready", this.#imgEl.complete);
-
-      setInterval(() => {
-        console.log("checkready interval", this.#imgEl.complete);
-      }, 100);
       if (this.#imgEl.complete) {
         this.#imgLoad();
       } else {
@@ -61,7 +56,6 @@ class ImageWithPreview extends HTMLElement {
   }
 
   #imgLoad = () => {
-    console.log("imgLoad - should work", this.#imgEl.complete);
     this.sd.innerHTML = `<slot name="image"></slot>`;
   };
 
@@ -114,7 +108,6 @@ function updateBlurHashPreview(
     ctx.putImageData(imageData, 0, 0);
 
     const end = +new Date();
-    console.log("Done Encoding Sync", blurhash, end - start);
   } else if (canvasEl.transferControlToOffscreen) {
     const offscreen = canvasEl.transferControlToOffscreen();
     worker.postMessage({ canvas: offscreen, width, height, blurhash }, [
