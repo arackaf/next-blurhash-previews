@@ -1,8 +1,8 @@
 # next-blurhash-previews
 
-This library ships a web component that shows a blurhash preview for an image, while it loads. It does not wait until SSR hydration is complete before showing the image, which means that if your browser already has the image cached, it will show immediately. 
+This library ships a web component that shows a blurhash preview for an image while it loads. It does not wait until SSR hydration is complete before showing the loaded image, when ready. This means if your browser has the image cached, it will show immediately. 
 
-It works in both markdown files and React pages; it supports synchronous Blurhash encoding, and OffscreanCanvas to encode on a background thread. Lastly, it's fully SSR friendly, since it exposes a component to synchronously register the web component. It does this by placing an inline, synchronous script on your page with the registration (the total script is only 5K minified, _before_ gzip).
+It works in both markdown files and React pages; it supports synchronous Blurhash encoding, and OffscreanCanvas to encode on a background thread. Lastly, it's fully SSR friendly, since it exposes a component to synchronously register the web component. It does this by placing an inline, synchronous script on your page with the web component's registration (the total script is only 5K minified, _before_ gzip).
 
 This differs from Next's Image component, which can receive a `placeholder="blur"` attribute, in a few ways: this will work in Markdown (without requiring MDX), and it does not wait until hydration is complete to show the underlying image. Again, if the browser has it cached, and ready to go, the image will show immediately, before hydration; more on this below. 
 
@@ -20,7 +20,7 @@ To use a web component, you have to register it. Just add this import
 import { imagePreviewBootstrap } from "next-blurhash-previews";
 ```
 
-and then render it anywhere *before* your content. For example, in your \_document.js file
+and then render it anywhere *before* your content. For example, in your _document.js file
 
 ```jsx
 export default class MyDocument extends Document {
@@ -43,7 +43,7 @@ This will add a blocking script to your page. This is usually bad for perf, but 
 
 ## Generating markdown image previews
 
-This library will parse your markdown files, detect any images, and for each, create a blurhash preview, and replace the original markdown image with a web component that renders the image when it's ready, and a blurhash preview until then. It will include all the light dom content needed to prevent hydration errors.
+This library will parse your markdown files, detect any images, and for each, create a blurhash preview, and replace the original markdown image with a web component that renders a blurhash preview while the image loads. It will include all the light dom content needed to prevent hydration errors.
 
 To do this, go to your terminal and run
 
@@ -78,7 +78,7 @@ These blurhash previews need to be decoded on the client. By default, this libra
 
 Using this web component in a React page works, but it's not yet completely polished.
 
-Parsing React in order to transform images into the `blurhash-image` web component would be significantly more difficult, and manually rendering the web component content from above would not be feasible. Instead, there's a React component you can render, which will handle all of this for you. Import it from here
+Parsing React components in order to transform images into the `blurhash-image` web component would be significantly more difficult, and manually rendering the web component content from above would not be feasible. Instead, there's a React component you can render, which will handle all of this for you. Import it from here
 
 ```js
 import { NextWrapper } from "next-blurhash-previews";
@@ -96,7 +96,7 @@ This will emit the same web component content you saw above.
 
 You need to pass the blurhash preview yourself. In the future there'll likely be another npx command you can run to get the preview, but for now you can just use the [blurhash](https://blurha.sh/) page. There's not (yet) any way to build a preview on a smaller image, and have css size it up, like with the markdown tools above. For now, just use the same image. 
 
-As children, pass the actual image you want rendered. Do **not** use Next's image component. The React wrapper adds a slot attribute to the child you pass; unfortunately, Next passes that slot attribute down to the underlying image tag, instead of the root wrapper, which breaks this. That said, Next's experimental image 
+As children, pass the actual image you want rendered. Do **not** use Next's image component. This React wrapper adds a slot attribute to the child you pass; unfortunately, Next passes that slot attribute down to the underlying image tag, instead of the root wrapper, which breaks this. That said, Next's experimental image 
 
 ```js
 import Image from "next/future/image";
@@ -114,7 +114,7 @@ Next's experimental image
 import Image from "next/future/image";
 ```
 
-does better. This renders a single img tag, with an inline style setting the background image to a preview. This means that, when the img loads, it'll just show, and cover up the background image. When hydration happens, code runs to remove this background image preview once the image is loaded. This means that, if the image is cached, the preview background will exist on the image for an instant, while the actual image is showing in your browser. This is absolutely fine, but it's also, presumably, why the experimental image does *not* blur the preview, even with th props of `placeholder="blur"` set; instead the background preview as of this writing, and from my testing, is just a solid color. The likely reason is that, if it added a style of `filter:blur`, it would blur your *actual* image, when it loaded, until hydration happened (which removes all of the background styles).
+does better. This renders a single img tag, with an inline style setting the background image to a preview. This means that, when the img loads, it'll just show, and cover up the background image. When hydration happens, code runs to remove this background image preview once the image is loaded. This means that, if the image is cached, the preview background will exist on the image for an instant, while the actual image is showing in your browser. This is absolutely fine, but it's also, presumably, why the experimental image does *not* blur the preview, even with th props of `placeholder="blur"` set; instead the background preview, as of this writing, from my testing, is just a solid color. The likely reason is that, if it added a style of `filter:blur`, it would blur your *actual* image, when it loaded, until hydration happened (which removes all of the background styles).
 
 There's also the question of how Next's background image preview would interact with a partially transparent image. If the image were to load, and display before hydration, while the background preview were still showing, and the shown image were partially transparent, the background preview would likely "bleed through" onto your real image, until hydration.
 
