@@ -1,3 +1,5 @@
+[![npm version](https://img.shields.io/npm/v/next-blurhash-previews.svg?style=flat)](https://www.npmjs.com/package/next-blurhash-previews)
+
 # next-blurhash-previews
 
 This library ships a web component that shows a blurhash preview for an image while it loads. It does not wait until SSR hydration is complete before showing the loaded image, when ready. This means if your browser has the image cached, it will show immediately. 
